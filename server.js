@@ -1,23 +1,16 @@
 const express = require("express");
 const cors = require("cors");
-const nodemailer = require("nodemailer");
+const { Resend } = require("resend");
 require("dotenv").config();
 
 const app = express();
-const PORT = 3000;
+
+const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
 
-const transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 587,
-    secure: false,
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-}
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 app.get("/", (req, res) => {
     res.send("LaVista server is running!");
@@ -43,11 +36,16 @@ app.post("/send-message", async (req, res) => {
 
     try {
 
-        await transporter.sendMail({
-            from: process.env.EMAIL_USER,
-            to: process.env.CONTACT_EMAIL,
+        const { data, error } = await resend.emails.send({
+
+            from: "LaVista Restaurant <onboarding@resend.dev>",
+
+            to: ["murgi6383@gmail.com"],
+
             replyTo: email,
+
             subject: `LaVista - ${subject}`,
+
             text: `
 Name: ${name}
 Email: ${email}
@@ -59,6 +57,19 @@ ${message}
             `
         });
 
+        if (error) {
+
+            console.error("Resend error:", error);
+
+            return res.status(500).json({
+                success: false,
+                message: "Failed to send message."
+            });
+
+        }
+
+        console.log("Email sent:", data);
+
         res.json({
             success: true,
             message: "Message sent successfully!"
@@ -66,7 +77,7 @@ ${message}
 
     } catch (error) {
 
-        console.error(error);
+        console.error("Server error:", error);
 
         res.status(500).json({
             success: false,
@@ -78,4 +89,3 @@ ${message}
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });
-
